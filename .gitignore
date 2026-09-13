@@ -1,0 +1,13 @@
+node_modules/
+.npm-cache/
+dist/
+release/
+.env
+.env.*
+*.log
+*.wav
+*.webm
+*.mp3
+
+# local editor / agent settings
+.claude/

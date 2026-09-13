@@ -1,0 +1,57 @@
+{
+  "name": "sout-egyptian-dictation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Egyptian Arabic speech-to-text for Windows",
+  "author": "Sout",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "desktop:dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:1420 && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:1420 electron .\"",
+    "build:win": "npm run build && electron-builder --win nsis",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^44.3.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.7",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.sout.dictation",
+    "productName": "Sout",
+    "asar": true,
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*", "assets/icon.ico", "package.json"],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icon.ico",
+      "artifactName": "Sout-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Sout-Portable-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sout",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
