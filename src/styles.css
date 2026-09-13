@@ -86,6 +86,9 @@ kbd { min-width: 23px; height: 21px; padding: 0 6px; display: inline-grid; place
 .mic-orb:not(:disabled):hover .orb-mic { opacity: 0; }
 .mic-orb:not(:disabled):hover .orb-stop { opacity: 1; }
 .phase-idle .mic-orb { animation: breathe 1.4s ease-in-out infinite; }
+/* Armed and waiting for a tap: calm, but clearly the button to press. */
+.phase-ready .mic-orb { color: var(--accent); background: rgba(214,255,82,.14); box-shadow: inset 0 0 0 1px rgba(214,255,82,.4); }
+.phase-ready .mic-orb:hover { color: #161a05; background: var(--accent); }
 .phase-recording .mic-orb { animation: ring 1.6s ease-out infinite; }
 .phase-transcribing .mic-orb { color: var(--accent); background: rgba(214,255,82,.12); animation: breathe 1.4s ease-in-out infinite; }
 .phase-done .mic-orb { color: #161a05; background: var(--accent); animation: pop .35s ease-out; }
@@ -148,6 +151,7 @@ kbd { min-width: 23px; height: 21px; padding: 0 6px; display: inline-grid; place
 .toggle-line input:checked + i { background: var(--accent); }
 .toggle-line input:checked + i::after { transform: translateX(15px); background: #161900; }
 .toggle-line input:checked + i { box-shadow: 0 0 0 1px rgba(214,255,82,.18), 0 0 12px rgba(214,255,82,.12); }
+.toggle-line.is-disabled { cursor: default; opacity: .45; }
 
 .history-list { display: grid; gap: 10px; max-width: 780px; }
 .history-item { position: relative; margin: 0; padding: 16px 17px 14px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,.018); }
@@ -222,6 +226,8 @@ kbd { min-width: 23px; height: 21px; padding: 0 6px; display: inline-grid; place
 :root[data-theme="light"] .overlay-close { color: #7a7f83; }
 :root[data-theme="light"] .overlay-close:hover { color: #202328; background: rgba(31,35,27,.07); }
 :root[data-theme="light"] .phase-transcribing .mic-orb { background: rgba(104,145,0,.12); }
+:root[data-theme="light"] .phase-ready .mic-orb { background: rgba(104,145,0,.12); box-shadow: inset 0 0 0 1px rgba(104,145,0,.35); }
+:root[data-theme="light"] .phase-ready .mic-orb:hover { color: #1b2500; background: var(--accent); }
 :root[data-theme="light"] .phase-error .mic-orb { color: #b8323b; background: rgba(200,62,72,.12); }
 :root[data-theme="light"] .empty-state > div { background: rgba(255,255,255,.7); }
 

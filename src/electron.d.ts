@@ -24,7 +24,7 @@ declare global {
       isStartupEnabled(): Promise<boolean>;
       setCompactWindow(compact: boolean): Promise<void>;
       hideWindow(): Promise<void>;
-      on(event: "dictation-start" | "dictation-stop" | "navigate", callback: (payload: unknown) => void): () => void;
+      on(event: "dictation-ready" | "dictation-start" | "dictation-stop" | "navigate", callback: (payload: unknown) => void): () => void;
     };
   }
 }

@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
   autoCopy: true,
   autoPaste: true,
   autoClose: true,
+  manualStart: false,
   historyEnabled: true,
   launchAtStartup: false
 };
@@ -59,6 +60,10 @@ let recording = false;
 let hotkeyPaused = false;
 let hotkeyRegistered = false;
 let previousWindowHandle = "0";
+// Manual-start mode: the pill is on screen waiting for a tap, and armedWindowHandle remembers the
+// window that was in front when it opened (the pill itself may have focus by the time we record).
+let overlayArmed = false;
+let armedWindowHandle = "0";
 let startingDictation = false;
 let quitting = false;
 
@@ -98,6 +103,8 @@ function loadSettings() {
 function saveSettings(next) {
   settings = { ...DEFAULT_SETTINGS, ...next };
   writeJson("settings.json", settings);
+  // An armed pill only means something in manual-start mode.
+  if (!settings.manualStart) disarmOverlay();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.setBackgroundColor(settings.theme === "light" ? "#f4f5f1" : "#0b0c10");
   }
@@ -228,11 +235,22 @@ function setOverlayMode(visible) {
   overlayWindow.setBounds(overlayBounds(), false);
 }
 
-function showOverlay() {
+// focus: false shows the pill without pulling the target application out of the foreground, which
+// is what manual-start mode needs — the user keeps typing until they tap the hotkey.
+function showOverlay(focus = true) {
   if (!alive(overlayWindow)) return;
   setOverlayMode(true);
+  if (!focus) {
+    overlayWindow.showInactive();
+    return;
+  }
   overlayWindow.show();
   overlayWindow.focus();
+}
+
+function disarmOverlay() {
+  overlayArmed = false;
+  armedWindowHandle = "0";
 }
 
 function showFullWindow(page = "home") {
@@ -292,9 +310,17 @@ async function beginDictation(ignoreHotkeyState = false) {
   startingDictation = true;
   try {
     const ownWindowFocused = Boolean(mainWindow?.isFocused() || overlayWindow?.isFocused());
-    previousWindowHandle = ownWindowFocused ? "0" : await getForegroundWindowHandle();
+    // Manual start: the first press only puts the pill on screen. The next press begins recording.
+    if (settings.manualStart && !overlayArmed) {
+      armedWindowHandle = ownWindowFocused ? "0" : await getForegroundWindowHandle();
+      overlayArmed = true;
+      showOverlay(false);
+      sendToRenderer(overlayWindow, "dictation-ready");
+      return;
+    }
+    previousWindowHandle = ownWindowFocused ? armedWindowHandle : await getForegroundWindowHandle();
     recording = true;
-    showOverlay();
+    showOverlay(!settings.manualStart);
     sendToRenderer(overlayWindow, "dictation-start");
   } finally {
     startingDictation = false;
@@ -459,7 +485,7 @@ function registerIpc() {
   });
   ipcMain.handle("dictation:start", () => beginDictation(true));
   ipcMain.handle("dictation:finish", () => { recording = false; });
-  ipcMain.handle("dictation:cancel", () => { recording = false; setOverlayMode(false); });
+  ipcMain.handle("dictation:cancel", () => { recording = false; disarmOverlay(); setOverlayMode(false); });
   ipcMain.handle("history:load", () => readJson("history.json", []));
   ipcMain.handle("history:add", (_event, value) => {
     if (!settings.historyEnabled) throw new Error("History is disabled.");
@@ -478,7 +504,15 @@ function registerIpc() {
   });
   ipcMain.handle("startup:get", () => app.getLoginItemSettings().openAtLogin);
   ipcMain.handle("window:compact", (_event, value) => setOverlayMode(Boolean(value)));
-  ipcMain.handle("window:hide", (event) => BrowserWindow.fromWebContents(event.sender)?.hide());
+  ipcMain.handle("window:hide", (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    // Dismissing the pill also ends a manual-start session, so the next press arms it again.
+    if (window === overlayWindow) {
+      recording = false;
+      disarmOverlay();
+    }
+    window?.hide();
+  });
 }
 
 function isAppWindow(webContents) {

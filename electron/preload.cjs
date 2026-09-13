@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
-const allowedEvents = new Set(["dictation-start", "dictation-stop", "navigate"]);
+const allowedEvents = new Set(["dictation-ready", "dictation-start", "dictation-stop", "navigate"]);
 
 contextBridge.exposeInMainWorld("sout", {
   loadSettings: () => ipcRenderer.invoke("settings:load"),

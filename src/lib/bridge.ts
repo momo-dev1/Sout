@@ -95,6 +95,6 @@ export async function hideWindow(): Promise<void> {
   await desktop().hideWindow();
 }
 
-export function onEvent<T>(event: "dictation-start" | "dictation-stop" | "navigate", handler: (payload: T) => void): Promise<UnlistenFn> {
+export function onEvent<T>(event: "dictation-ready" | "dictation-start" | "dictation-stop" | "navigate", handler: (payload: T) => void): Promise<UnlistenFn> {
   return Promise.resolve(desktop().on(event, (payload) => handler(payload as T)));
 }

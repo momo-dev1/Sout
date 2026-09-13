@@ -159,16 +159,42 @@ function App({ mode }: { mode: AppMode }) {
     setOverlay(false);
     setPhase("idle");
     setError("");
+    cancelledRef.current = false;
     if (isDesktop()) await hideWindow();
   }, []);
 
-  // The pill shows a brief check when done and a short error line when something failed; both
-  // dismiss themselves so nothing is left floating on screen.
+  // Manual start: the hotkey only puts the pill on screen. It waits here until the hotkey is
+  // tapped again (or the orb is clicked) and stays open between dictations.
+  const armRecorder = useCallback(async () => {
+    cancelledRef.current = false;
+    setError("");
+    setOverlay(true);
+    setPhase("ready");
+    if (isDesktop()) {
+      try {
+        const stored = await loadSettings();
+        settingsRef.current = stored;
+        setSettings(stored);
+      } catch {
+        // Fall back to whatever was loaded at startup.
+      }
+    }
+  }, []);
+
+  // The pill shows a brief check when done and a short error line when something failed. In manual
+  // mode it falls back to the ready state; otherwise it dismisses itself so nothing is left floating.
   useEffect(() => {
-    if (!overlay) return;
-    const delay = phase === "error" ? 6000 : phase === "done" && settingsRef.current.autoClose ? 900 : 0;
-    if (!delay) return;
-    const timer = window.setTimeout(() => void hideOverlay(), delay);
+    if (!overlay || (phase !== "done" && phase !== "error")) return;
+    const manual = settingsRef.current.manualStart;
+    if (!manual && phase === "done" && !settingsRef.current.autoClose) return;
+    const timer = window.setTimeout(() => {
+      if (manual) {
+        setError("");
+        setPhase("ready");
+      } else {
+        void hideOverlay();
+      }
+    }, phase === "error" ? 6000 : 900);
     return () => window.clearTimeout(timer);
   }, [overlay, phase, hideOverlay]);
 
@@ -186,8 +212,9 @@ function App({ mode }: { mode: AppMode }) {
     if (current.autoPaste || current.autoCopy) await copyAndMaybePaste(text, false);
 
     if (current.autoPaste) {
-      await pastePrevious(!current.autoClose);
-      if (current.autoClose) {
+      // Manual mode keeps the pill up between dictations, so the window is never torn down here.
+      await pastePrevious(current.manualStart || !current.autoClose);
+      if (!current.manualStart && current.autoClose) {
         setOverlay(false);
         setPhase("idle");
       } else {
@@ -315,7 +342,9 @@ function App({ mode }: { mode: AppMode }) {
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
-    if (sessionRef.current?.recorder.state !== "inactive") stopRecording();
+    // Without a live recorder (ready/idle/done) there is nothing to stop, so close the pill directly.
+    const session = sessionRef.current;
+    if (session && session.recorder.state !== "inactive") stopRecording();
     else void hideOverlay();
   }, [hideOverlay, stopRecording]);
 
@@ -323,6 +352,7 @@ function App({ mode }: { mode: AppMode }) {
     if (!isDesktop()) return;
     const unlisteners: Array<Promise<() => void>> = mode === "overlay"
       ? [
+        onEvent("dictation-ready", () => void armRecorder()),
         onEvent("dictation-start", () => void startRecording()),
         onEvent("dictation-stop", () => stopRecording())
       ]
@@ -333,7 +363,7 @@ function App({ mode }: { mode: AppMode }) {
         })
       ];
     return () => void Promise.all(unlisteners).then((items) => items.forEach((fn) => fn()));
-  }, [mode, refreshHistory, startRecording, stopRecording]);
+  }, [armRecorder, mode, refreshHistory, startRecording, stopRecording]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -347,7 +377,7 @@ function App({ mode }: { mode: AppMode }) {
     if (!overlay) return null;
     return (
       <div className="overlay-root">
-        <RecorderOverlay phase={phase} seconds={seconds} levels={levels} error={error} onStop={stopRecording} onCancel={cancel} onDismiss={hideOverlay} />
+        <RecorderOverlay phase={phase} seconds={seconds} levels={levels} error={error} hotkey={settings.hotkey} onStart={() => void requestDictation()} onStop={stopRecording} onCancel={cancel} onDismiss={hideOverlay} />
       </div>
     );
   }
@@ -411,21 +441,26 @@ function HotkeyKeys({ hotkey }: { hotkey: string }) {
   return <div className="hotkey-keys">{displayHotkey(hotkey).map((part) => <kbd key={part}>{part}</kbd>)}</div>;
 }
 
-function RecorderOverlay({ phase, seconds, levels, error, onStop, onCancel, onDismiss }: {
-  phase: RecorderPhase; seconds: number; levels: number[]; error: string;
-  onStop: () => void; onCancel: () => void; onDismiss: () => Promise<void>;
+function RecorderOverlay({ phase, seconds, levels, error, hotkey, onStart, onStop, onCancel, onDismiss }: {
+  phase: RecorderPhase; seconds: number; levels: number[]; error: string; hotkey: string;
+  onStart: () => void; onStop: () => void; onCancel: () => void; onDismiss: () => Promise<void>;
 }) {
-  // One pill for every state: orb (stop while recording), waveform, timer, close. No text except an error.
+  // One pill for every state: orb (start when ready, stop while recording), waveform, timer, close.
+  // No text except an error.
   const live = phase === "recording";
+  const ready = phase === "ready";
   const waveState = live ? "live" : phase === "transcribing" ? "thinking" : "idle";
   const orbIcon = phase === "transcribing" ? <Sparkles size={16} />
     : phase === "done" ? <Check size={17} strokeWidth={2.5} />
     : phase === "error" ? <span className="orb-glyph">!</span>
+    : ready ? <Mic2 size={16} />
     : <><Mic2 size={16} className="orb-mic" /><Square size={10} fill="currentColor" className="orb-stop" /></>;
-  const orbLabel = live ? "Stop and transcribe" : phase === "transcribing" ? "Transcribing" : phase === "done" ? "Done" : phase === "error" ? "Error" : "Starting microphone";
+  const orbLabel = live ? "Stop and transcribe" : ready ? "Start dictation" : phase === "transcribing" ? "Transcribing" : phase === "done" ? "Done" : phase === "error" ? "Error" : "Starting microphone";
+  const orbTitle = live ? `Stop (or press ${hotkey} again)` : ready ? `Start (or press ${hotkey})` : undefined;
+  const closes = !live && !ready && phase !== "idle";
   return (
     <div className={`recorder-window pill phase-${phase}`} data-drag-region>
-      <button className="mic-orb" onClick={onStop} disabled={!live} aria-label={orbLabel} title={live ? "Stop (or press your hotkey again)" : undefined}>{orbIcon}</button>
+      <button className="mic-orb" onClick={ready ? onStart : onStop} disabled={!live && !ready} aria-label={orbLabel} title={orbTitle}>{orbIcon}</button>
       {phase === "error"
         ? <p className="pill-error" title={error}>{error}</p>
         : <div className={`waveform ${waveState}`} aria-label="Microphone level">
@@ -435,7 +470,7 @@ function RecorderOverlay({ phase, seconds, levels, error, onStop, onCancel, onDi
         </div>}
       {live && <time>{formatDuration(seconds)}</time>}
       {phase !== "transcribing" && (
-        <button className="overlay-close" onClick={() => (live || phase === "idle" ? onCancel() : void onDismiss())} aria-label={live || phase === "idle" ? "Cancel" : "Close"}><X size={14} /></button>
+        <button className="overlay-close" onClick={() => (closes ? void onDismiss() : onCancel())} aria-label={closes ? "Close" : "Cancel"}><X size={14} /></button>
       )}
     </div>
   );
@@ -555,7 +590,8 @@ function SettingsPage({ settings, setSettings, configured, keyHint, onKeyStatus 
 
     <SettingCard icon={<MousePointer2 size={19} />} title="Floating recorder">
       <div className="segmented"><button className={settings.placement === "bottom" ? "active" : ""} onClick={() => void persist({ placement: "bottom" })}>Bottom center</button><button className={settings.placement === "top" ? "active" : ""} onClick={() => void persist({ placement: "top" })}>Top center</button><button className={settings.placement === "center" ? "active" : ""} onClick={() => void persist({ placement: "center" })}>Center</button></div>
-      <Toggle label="Auto-close after completion" description="Hide the recorder once text is inserted" checked={settings.autoClose} onChange={(v) => void persist({ autoClose: v })} />
+      <Toggle label="Wait for a tap before recording" description={`${settings.hotkey} only opens the recorder; tap it again to start, once more to stop. The recorder stays open between dictations.`} checked={settings.manualStart} onChange={(v) => void persist({ manualStart: v })} />
+      <Toggle label="Auto-close after completion" description={settings.manualStart ? "Ignored while “Wait for a tap” keeps the recorder open" : "Hide the recorder once text is inserted"} checked={settings.autoClose} disabled={settings.manualStart} onChange={(v) => void persist({ autoClose: v })} />
     </SettingCard>
 
     <SettingCard icon={<Clipboard size={19} />} title="Output">
@@ -575,8 +611,8 @@ function SettingCard({ icon, title, children }: { icon: React.ReactNode; title: 
   return <div className="settings-card"><div className="settings-card-title"><span>{icon}</span><h2>{title}</h2></div><div className="settings-card-body">{children}</div></div>;
 }
 
-function Toggle({ label, description, checked, onChange }: { label: string; description: string; checked: boolean; onChange: (value: boolean) => void }) {
-  return <label className="setting-line toggle-line"><div><strong>{label}</strong><span>{description}</span></div><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /><i /></label>;
+function Toggle({ label, description, checked, disabled, onChange }: { label: string; description: string; checked: boolean; disabled?: boolean; onChange: (value: boolean) => void }) {
+  return <label className={`setting-line toggle-line ${disabled ? "is-disabled" : ""}`}><div><strong>{label}</strong><span>{description}</span></div><input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /><i /></label>;
 }
 
 export default App;

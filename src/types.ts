@@ -10,6 +10,7 @@ export interface AppSettings {
   autoCopy: boolean;
   autoPaste: boolean;
   autoClose: boolean;
+  manualStart: boolean;
   historyEnabled: boolean;
   launchAtStartup: boolean;
 }
@@ -25,7 +26,8 @@ export interface ApiKeyStatus {
   maskedHint: string | null;
 }
 
-export type RecorderPhase = "idle" | "recording" | "transcribing" | "done" | "error";
+// "ready" is the armed-but-silent pill used when manualStart is on: it waits for a tap to record.
+export type RecorderPhase = "idle" | "ready" | "recording" | "transcribing" | "done" | "error";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "dark",
@@ -36,6 +38,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoCopy: true,
   autoPaste: true,
   autoClose: true,
+  manualStart: false,
   historyEnabled: true,
   launchAtStartup: false
 };
