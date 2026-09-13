@@ -10,6 +10,7 @@ import {
   EyeOff,
   History,
   Keyboard,
+  Languages,
   LoaderCircle,
   Mic2,
   MousePointer2,
@@ -592,6 +593,10 @@ function SettingsPage({ settings, setSettings, configured, keyHint, onKeyStatus 
       <div className="segmented"><button className={settings.placement === "bottom" ? "active" : ""} onClick={() => void persist({ placement: "bottom" })}>Bottom center</button><button className={settings.placement === "top" ? "active" : ""} onClick={() => void persist({ placement: "top" })}>Top center</button><button className={settings.placement === "center" ? "active" : ""} onClick={() => void persist({ placement: "center" })}>Center</button></div>
       <Toggle label="Wait for a tap before recording" description={`${settings.hotkey} only opens the recorder; tap it again to start, once more to stop. The recorder stays open between dictations.`} checked={settings.manualStart} onChange={(v) => void persist({ manualStart: v })} />
       <Toggle label="Auto-close after completion" description={settings.manualStart ? "Ignored while “Wait for a tap” keeps the recorder open" : "Hide the recorder once text is inserted"} checked={settings.autoClose} disabled={settings.manualStart} onChange={(v) => void persist({ autoClose: v })} />
+    </SettingCard>
+
+    <SettingCard icon={<Languages size={19} />} title="Language">
+      <Toggle label="Translate to English" description="Speak Egyptian Arabic and get an English translation of exactly what you said, instead of the Arabic transcription" checked={settings.translateToEnglish} onChange={(v) => void persist({ translateToEnglish: v })} />
     </SettingCard>
 
     <SettingCard icon={<Clipboard size={19} />} title="Output">

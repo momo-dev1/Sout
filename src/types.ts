@@ -11,6 +11,7 @@ export interface AppSettings {
   autoPaste: boolean;
   autoClose: boolean;
   manualStart: boolean;
+  translateToEnglish: boolean;
   historyEnabled: boolean;
   launchAtStartup: boolean;
 }
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoPaste: true,
   autoClose: true,
   manualStart: false,
+  translateToEnglish: false,
   historyEnabled: true,
   launchAtStartup: false
 };
