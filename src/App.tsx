@@ -67,7 +67,10 @@ const formatDuration = (seconds: number) =>
   `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 
 const friendlyError = (value: unknown) => {
-  const message = value instanceof Error ? value.message : String(value);
+  // Electron rejects ipcRenderer.invoke with "Error invoking remote method '<channel>': Error: …",
+  // so the main-process message has to be unwrapped before it is shown in the pill.
+  const message = (value instanceof Error ? value.message : String(value))
+    .replace(/^Error invoking remote method '[^']*':\s*/, "");
   if (message.includes("NotAllowedError") || message.toLowerCase().includes("permission"))
     return "Microphone access was denied. Allow microphone access in Windows Privacy settings and try again.";
   if (value instanceof DOMException && (value.name === "NotFoundError" || value.name === "OverconstrainedError"))
