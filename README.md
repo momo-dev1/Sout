@@ -99,7 +99,12 @@ Every completed dictation with its time. Arabic entries render right-to-left, En
 
 ### Settings
 
-Gemini key, hotkey, microphone, recorder placement, output behaviour, and appearance.
+Gemini key, hotkey, microphone, recorder placement, language, output behaviour, and appearance.
+
+Two toggles worth knowing:
+
+- **Translate to English** — speak Egyptian Arabic and get an English translation of exactly what you said, instead of the Arabic transcription.
+- **Wait for a tap before recording** — the hotkey only puts the recorder on screen; tap it again to start, once more to stop. The recorder stays open between dictations instead of closing.
 
 <table>
 <tr><th>Dark</th><th>Light</th></tr>
@@ -182,7 +187,7 @@ src/
 docs/screenshots  images used in this README
 ```
 
-The recorder pill runs in its **own transparent, always-on-top window** that loads the same bundle with `#overlay`; the main window handles Settings and History. Transcription goes through the Gemini Interactions API using `gemini-3.6-flash` with a low thinking level (fast, no reasoning tokens) and an Egyptian-Arabic system instruction that preserves code-switching and tone. The model, endpoint, and instruction live at the top of `electron/main.cjs`.
+The recorder pill runs in its **own transparent, always-on-top window** that loads the same bundle with `#overlay`; the main window handles Settings and History. Transcription goes through the Gemini Interactions API using `gemini-3.6-flash` with a low thinking level (fast, no reasoning tokens) and an Egyptian-Arabic system instruction that preserves code-switching and tone (swapped for a translation instruction when *Translate to English* is on). The model, endpoint, and both instructions live at the top of `electron/main.cjs`.
 
 ## Tech
 
