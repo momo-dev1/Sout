@@ -11,7 +11,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "desktop:dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:1420 && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:1420 electron .\"",
-    "build:win": "npm run build && electron-builder --win nsis",
+    "build:win": "npm run build && electron-builder --win nsis portable",
     "start": "electron ."
   },
   "dependencies": {
@@ -38,7 +38,7 @@
     "directories": { "output": "release" },
     "files": ["dist/**/*", "electron/**/*", "assets/icon.ico", "package.json"],
     "win": {
-      "target": ["nsis"],
+      "target": ["nsis", "portable"],
       "icon": "assets/icon.ico",
       "artifactName": "Sout-Setup-${version}.${ext}"
     },
