@@ -77,6 +77,9 @@ let armedWindowHandle = "0";
 let startingDictation = false;
 let quitting = false;
 
+// Only one Sout may run. app.quit() is asynchronous, so the duplicate process must also be blocked
+// from reaching app.whenReady() below — otherwise it briefly builds a second tray icon, fails to
+// claim the already-taken hotkey, and opens Settings to report it.
 const singleInstance = app.requestSingleInstanceLock();
 if (!singleInstance) app.quit();
 
@@ -530,11 +533,13 @@ function isAppWindow(webContents) {
   return webContents === mainWindow?.webContents || webContents === overlayWindow?.webContents;
 }
 
-app.on("second-instance", () => showFullWindow("home"));
+// Launching the exe again while Sout is running is a no-op: the running copy stays where it is,
+// in the tray. Double-click the tray icon (or use its menu) to open the window.
+app.on("second-instance", () => {});
 app.on("window-all-closed", () => {});
 app.on("will-quit", () => globalShortcut.unregisterAll());
 
-app.whenReady().then(() => {
+if (singleInstance) app.whenReady().then(() => {
   app.setAppUserModelId("com.sout.dictation");
   loadSettings();
   session.defaultSession.setPermissionCheckHandler((webContents, permission) =>
