@@ -153,7 +153,7 @@ function saveEncryptedApiKey(apiKey) {
 function apiError(body, status) {
   const detail = body?.error?.message || "";
   if (status === 401 || status === 403) return `The Gemini API key is invalid or cannot access ${MODEL_LABEL}.`;
-  if (status === 429) return "Gemini rate limit reached. Wait a moment, then try again.";
+  if (status === 429) return "Gemini quota reached. Wait a minute, or enable billing on your key's Google project.";
   if (status >= 500) return "Gemini is temporarily unavailable. Please try again.";
   return detail ? `Gemini rejected the request: ${detail}` : `Gemini returned an error (${status}).`;
 }
