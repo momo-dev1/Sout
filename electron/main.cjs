@@ -295,9 +295,11 @@ async function getForegroundWindowHandle() {
   }
 }
 
+// SW_RESTORE un-maximizes a maximized window, so it is only sent when the target is actually
+// minimized (IsIconic); otherwise the window keeps the exact size and state the user left it in.
 async function pasteToWindow(handle) {
   const safeHandle = /^\d+$/.test(String(handle)) ? String(handle) : "0";
-  const script = `Add-Type -AssemblyName System.Windows.Forms; Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class SoutWindow { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); }'; $h=[IntPtr]::new([Int64]${safeHandle}); if ($h -eq [IntPtr]::Zero) { $h=[SoutWindow]::GetForegroundWindow() } else { [SoutWindow]::ShowWindow($h,9) | Out-Null; [SoutWindow]::SetForegroundWindow($h) | Out-Null }; Start-Sleep -Milliseconds 120; [System.Windows.Forms.SendKeys]::SendWait('^v')`;
+  const script = `Add-Type -AssemblyName System.Windows.Forms; Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class SoutWindow { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd); [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd); }'; $h=[IntPtr]::new([Int64]${safeHandle}); if ($h -eq [IntPtr]::Zero -or -not [SoutWindow]::IsWindow($h)) { $h=[SoutWindow]::GetForegroundWindow() } elseif ($h -ne [SoutWindow]::GetForegroundWindow()) { if ([SoutWindow]::IsIconic($h)) { [SoutWindow]::ShowWindow($h,9) | Out-Null }; [SoutWindow]::SetForegroundWindow($h) | Out-Null }; Start-Sleep -Milliseconds 120; [System.Windows.Forms.SendKeys]::SendWait('^v')`;
   try {
     await runPowerShell(script);
   } catch {
@@ -489,10 +491,8 @@ function registerIpc() {
     setOverlayMode(false);
     await new Promise((resolve) => setTimeout(resolve, 90));
     await pasteToWindow(previousWindowHandle);
-    if (keepOpen && alive(overlayWindow)) {
-      overlayWindow.show();
-      overlayWindow.focus();
-    }
+    // Shown inactive so the application that just received the text keeps the foreground.
+    if (keepOpen && alive(overlayWindow)) showOverlay(false);
   });
   ipcMain.handle("dictation:start", () => beginDictation(true));
   ipcMain.handle("dictation:finish", () => { recording = false; });
